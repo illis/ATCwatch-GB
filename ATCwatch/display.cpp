@@ -137,7 +137,11 @@ void initDisplay() {
   delay(100);
   startWrite_display();
   spiCommand(54);
+#ifdef MODEL_P22
+  temp[0] = 0x48;
+#else // MODEL_P22
   temp[0] = 0x00;//0xC0 when rotated screen
+#endif
   write_fast_spi(temp, 1);
   spiCommand(58);
   temp[0] = 5;
@@ -206,7 +210,10 @@ void initDisplay() {
   temp[12] = 32;
   temp[13] = 35;
   write_fast_spi(temp, 14);
+#ifndef MODEL_P22
+  // This does the colour inversion
   spiCommand(33);
+#endif
   spiCommand(17);
   delay(120);
   spiCommand(41);
