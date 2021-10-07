@@ -9,6 +9,7 @@
 #include "menu.h"
 #include "display.h"
 #include "inputoutput.h"
+#include "push.h"
 
 String msgText = " ";
 String httpText = " ";
@@ -17,13 +18,16 @@ String msgBodyText = " ";
 String titlText = " ";
 String tickText = " ";
 
-void init_push() {
+Notf notfs[NOTF_MAX];
+uintptr_t notf_used = 0;
 
+void init_push() {
 }
 
-String filter_string(String str)
+
+String filter_string_len(String str, int len)
 {
-  int i = 0, len = str.length();
+  int i = 0;
   while (i < len)
   {
     char c = str[i];
@@ -38,6 +42,11 @@ String filter_string(String str)
     }
   }
   return str;
+}
+
+String filter_string(String str)
+{
+  return filter_string_len(str, str.length());
 }
 
 void show_push(String pushMSG) {
@@ -72,14 +81,43 @@ void show_tick(String tickMSG) {
 }
 
 void show_msgBody(String bodyMSG) {
-  msgBodyText = filter_string("Body: " + bodyMSG);
+  msgBodyText = filter_string(bodyMSG);
   set_sleep_time();
 }
 
 void show_titl(String titlMSG) {
-  titlText = filter_string("Title: " + titlMSG);
+  titlText = filter_string(titlMSG);
   set_sleep_time();
 }
+
+char *strncpy_filtered(char *dest, const char *src, size_t n)
+{
+  int is,id = 0;
+  while (is < n) {
+    if (src[is] >= 0x20) {
+      dest[id] = src[is];
+      id++;
+    }
+    is++;
+  }
+
+  return dest;
+}
+
+void show_notf(String notfString) {
+  read_notification(&notfs, &notf_used, (const uint8_t *) notfString.c_str());
+
+  set_sleep_time();
+}
+
+int get_notf_total() {
+  return notf_used;
+}
+
+Notf *get_notf(int idx) {
+  return &notfs[idx];
+}
+
 
 String get_http_msg(int returnLength) {
   if (returnLength != 0 || httpText.length() == returnLength) {

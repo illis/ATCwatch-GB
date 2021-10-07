@@ -151,5 +151,7 @@ void filterCmd(String Command) {
     show_msgBody(Command.substring(8));
   } else if (Command.substring(0, 8) == "AT+TICK=") {
     show_msgBody(Command.substring(8));
+  } else if (Command.substring(0, 8) == "AT+NOTF=") {
+    show_notf(Command.substring(8));
   }
 }
