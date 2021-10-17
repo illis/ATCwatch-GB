@@ -25,6 +25,8 @@
 #define TP_RESET     10
 #define TP_INT       28
 
+#define ACCL_DISABLE // Temp disable, as it doesn't work on our model
+
 //Accl Sensor
 #define BMA421_SDA   6
 #define BMA421_SCL   7
