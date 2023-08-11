@@ -5,7 +5,6 @@
  */
 
 #pragma once
-// #include "rust_lib_for_arduino_example.h"
 #include "Arduino.h"
 #include "class.h"
 #include "images.h"

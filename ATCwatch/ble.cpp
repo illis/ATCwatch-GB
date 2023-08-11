@@ -15,6 +15,7 @@
 #include "bootloader.h"
 #include "push.h"
 #include "accl.h"
+#include "TimeLib.h"
 
 BLEPeripheral                   blePeripheral           = BLEPeripheral();
 BLEService                      main_service     = BLEService("190A");
@@ -23,11 +24,23 @@ BLECharacteristic   RXchar        = BLECharacteristic("0001", BLEWriteWithoutRes
 
 bool vars_ble_connected = false;
 
+BLEService bangleService =                       BLEService("6e400001b5a3f393e0a9e50e24dcca9e");
+BLECharacteristic   bangleTXchar        = BLECharacteristic("6e400003b5a3f393e0a9e50e24dcca9e", BLENotify, 20);
+BLECharacteristic   bangleRXchar        = BLECharacteristic("6e400002b5a3f393e0a9e50e24dcca9e", BLEWriteWithoutResponse, 20);
+
+
 void init_ble() {
-  blePeripheral.setLocalName("ATCwatch");
+  blePeripheral.setLocalName("Espruino");
   blePeripheral.setConnectionInterval(400,401);
   blePeripheral.setAdvertisingInterval(500);
-  blePeripheral.setDeviceName("ATCwatch");
+  blePeripheral.setDeviceName("Espruino");
+
+  blePeripheral.setAdvertisedServiceUuid(bangleService.uuid());
+  blePeripheral.addAttribute(bangleService);
+  blePeripheral.addAttribute(bangleTXchar);
+  blePeripheral.addAttribute(bangleRXchar);
+  bangleRXchar.setEventHandler(BLEWritten, ble_written_bangle);
+
   blePeripheral.setAdvertisedServiceUuid(main_service.uuid());
   blePeripheral.addAttribute(main_service);
   blePeripheral.addAttribute(TXchar);
@@ -39,8 +52,38 @@ void init_ble() {
   ble_feed();
 }
 
+char rbuff[2048];
+uint8_t rbuff_pos = 0;
+
+void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) {
+
+  memcpy(&rbuff[rbuff_pos], characteristic.value(), characteristic.valueLength());
+  rbuff_pos += characteristic.valueLength();
+
+  bool end = false;
+  if (rbuff[rbuff_pos - 1] == '\n' )  {
+    //  null bit might help when looking for end of string? not sure if we actually use this
+    rbuff[rbuff_pos] = 0;
+    end = true;
+  }
+
+
+  if (end) {
+    if (rbuff[0] != '\u0010') {
+      // gadget bridge sends this first
+      // prob unnecessary
+      rbuff_pos = 0;
+      return;
+    }
+
+    process_bangle_input(rbuff, rbuff_pos, setTime, show_notf_c, get_notf_data());
+    rbuff_pos = 0;
+  }
+}
+
 void ble_feed() {
   blePeripheral.poll();
+
 }
 
 void ble_ConnectHandler(BLECentral& central) {
@@ -151,7 +194,5 @@ void filterCmd(String Command) {
     show_msgBody(Command.substring(8));
   } else if (Command.substring(0, 8) == "AT+TICK=") {
     show_msgBody(Command.substring(8));
-  } else if (Command.substring(0, 8) == "AT+NOTF=") {
-    show_notf(Command.substring(8));
   }
 }

@@ -1,0 +1,30 @@
+board_manager:
+  additional_urls: [
+    #https://atc1441.github.io/D6Library/package_nRF5_boards_index.json
+    # Use this one instead as the filesize in the original json is wrong
+    https://raw.githubusercontent.com/elazarrosenthal/AtcWatchBuilder/c69789c244c92b336c90788d18b796e6d1f0e112/package_nRF5_boards_index.json
+  ]
+build_cache:
+  compilations_before_purge: 10
+  ttl: 720h0m0s
+daemon:
+  port: "50051"
+directories:
+  data: .arduino/data
+  downloads: .arduino/data/staging
+  user: ./ATCwatch/
+library:
+  enable_unsafe_install: false
+logging:
+  file: ""
+  format: text
+  level: trace
+metrics:
+  addr: :9090
+  enabled: false
+output:
+  no_color: false
+sketch:
+  always_export_binaries: false
+updater:
+  enable_notification: true

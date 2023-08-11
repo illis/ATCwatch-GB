@@ -2,6 +2,7 @@
 #define _PINOUT_
 
 #define MODEL_P22
+#define HEARTRATE_DISABLE
 
 //P22########################################################################################
 #ifdef MODEL_P22

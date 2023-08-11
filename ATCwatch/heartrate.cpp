@@ -9,7 +9,9 @@
 #include "i2c.h"
 #include "inputoutput.h"
 #include "sleep.h"
+#ifndef HEARTRATE_DISABLE
 #include "HRS3300lib.h"
+#endif
 
 bool heartrate_enable = false;
 bool is_heartrate_enable = false;
@@ -23,27 +25,42 @@ int hr_answers;
 bool disabled_hr_allready = false;
 
 void init_hrs3300() {
+#ifndef HEARTRATE_DISABLE
+
   pinMode(HRS3300_TEST, INPUT);
   HRS3300_begin(user_i2c_read, user_i2c_write);//set the i2c read and write function so it can be a user defined i2c hardware see i2c.h
   heartrate_enable = true;
   end_hrs3300();
+#else
+   pinMode(HRS3300_TEST, INPUT);
+   // disable heartrate sensor
+   // ref: https://files.pine64.org/doc/datasheet/pinetime/HRS3300%20Heart%20Rate%20Sensor.pdf
+   user_i2c_write(0x44, 0x01, 0b00000000, 1);
+    // hrs led driver set register
+   user_i2c_write(0x44, 0x0c, 0b00000000, 1);
+#endif // HEARTRATE
 }
 
 void start_hrs3300() {
+#ifndef HEARTRATE_DISABLE
   if (!heartrate_enable) {
     HRS3300_enable();
     heartrate_enable = true;
   }
+#endif
 }
 
 void end_hrs3300() {
+#ifndef HEARTRATE_DISABLE
   if (heartrate_enable) {
     heartrate_enable = false;
     HRS3300_disable();
   }
+#endif
 }
 
 byte get_heartrate() {
+#ifndef HEARTRATE_DISABLE
   byte hr = last_heartrate_ms;
   switch (hr) {
     case 0:
@@ -59,19 +76,29 @@ byte get_heartrate() {
       break;
   }
   return hr;
+#else // HEARTRATE
+  return 0x0;
+#endif
 }
 
 byte get_last_heartrate() {
+#ifndef HEARTRATE_DISABLE
   return last_heartrate;
+#else // HEARTRATE
+  return 0x0;
+#endif
 }
 
 void get_heartrate_ms() {
+#ifndef HEARTRATE_DISABLE
   if (heartrate_enable) {
     last_heartrate_ms = HRS3300_getHR();
   }
+#endif // HEARTRATE
 }
 
 void check_timed_heartrate(int minutes) {
+#ifndef HEARTRATE_DISABLE
   if (timed_heart_rates) {
     if (minutes == 0 || minutes == 15 || minutes == 30 || minutes == 45) {
       if (!has_good_heartrate) {
@@ -101,4 +128,5 @@ void check_timed_heartrate(int minutes) {
       }
     }
   }
+#endif // HEARTRATE
 }

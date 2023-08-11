@@ -1,0 +1,7 @@
+# language = "C"
+pragma_once = true
+include_guard = "atc-rust_h"
+no_includes = true
+sys_includes = ["stdint.h"]
+
+

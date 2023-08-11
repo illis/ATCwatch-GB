@@ -1,0 +1,4 @@
+target
+arduino_lib/src/atcrust.h
+arduino_lib/src/atcrust_c.h
+.direnv

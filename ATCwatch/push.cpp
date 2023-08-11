@@ -10,6 +10,7 @@
 #include "display.h"
 #include "inputoutput.h"
 #include "push.h"
+#include "TimeLib.h"
 
 String msgText = " ";
 String httpText = " ";
@@ -18,16 +19,44 @@ String msgBodyText = " ";
 String titlText = " ";
 String tickText = " ";
 
-Notf notfs[NOTF_MAX];
-uintptr_t notf_used = 0;
+
+NotfData notfData = {
+ {},
+ 0,
+};
+
+NotfData *get_notf_data() {
+  return &notfData;
+}
+
+void show_notf(String notfString) {
+  read_notification(&notfData.notfs, &notfData.notf_count, (const uint8_t *) notfString.c_str());
+
+  set_sleep_time();
+}
+
+void show_notf_c(const char *notfString) {
+  read_notification(&notfData.notfs, &notfData.notf_count, (const uint8_t *) notfString);
+
+  set_sleep_time();
+}
+
+int get_notf_total() {
+  return notfData.notf_count;
+}
+
+Notf *get_notf(int idx) {
+  return &notfData.notfs[idx];
+}
+
+
 
 void init_push() {
 }
 
-
-String filter_string_len(String str, int len)
+String filter_string(String str)
 {
-  int i = 0;
+  int i = 0, len = str.length();
   while (i < len)
   {
     char c = str[i];
@@ -42,11 +71,6 @@ String filter_string_len(String str, int len)
     }
   }
   return str;
-}
-
-String filter_string(String str)
-{
-  return filter_string_len(str, str.length());
 }
 
 void show_push(String pushMSG) {
@@ -81,43 +105,14 @@ void show_tick(String tickMSG) {
 }
 
 void show_msgBody(String bodyMSG) {
-  msgBodyText = filter_string(bodyMSG);
+  msgBodyText = filter_string("Body: " + bodyMSG);
   set_sleep_time();
 }
 
 void show_titl(String titlMSG) {
-  titlText = filter_string(titlMSG);
+  titlText = filter_string("Title: " + titlMSG);
   set_sleep_time();
 }
-
-char *strncpy_filtered(char *dest, const char *src, size_t n)
-{
-  int is,id = 0;
-  while (is < n) {
-    if (src[is] >= 0x20) {
-      dest[id] = src[is];
-      id++;
-    }
-    is++;
-  }
-
-  return dest;
-}
-
-void show_notf(String notfString) {
-  read_notification(&notfs, &notf_used, (const uint8_t *) notfString.c_str());
-
-  set_sleep_time();
-}
-
-int get_notf_total() {
-  return notf_used;
-}
-
-Notf *get_notf(int idx) {
-  return &notfs[idx];
-}
-
 
 String get_http_msg(int returnLength) {
   if (returnLength != 0 || httpText.length() == returnLength) {

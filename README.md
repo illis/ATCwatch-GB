@@ -1,3 +1,47 @@
+# ATC Watch w/ Gadgetbridge support.
+Modified version of [atc1441's watch firmware](https://github.com/atc1441/ATCwatch).
+
+- Supports Gadgetbridge using bangle.js commands (still can use D6 Notification app w/ build flag}.
+  - So far only the following cmds are supported:
+    - setTime
+    - notify
+    - call: incoming (notification only)
+- Has internal libs written both zig & rust (wanted to see how well cross compiling worked)
+- nix dev shell
+- Updated notification's tab
+
+## Setup for your watch
+The default settings will:
+ - builds a version for a: P22B1  BYM-TUX2-2.0.4
+ - accelometer: disabled via ACCL_DISABLE flag
+ - heartrate sensor: disabled via HEARTRATE_DISABLE flag
+ - D6 Notification app: disabled via D6NOTIFICATION flag
+
+You will need to mod the ./ATCwatch/pinout.h file to suit your specific device.
+
+## Compiling
+get into a nix-shell:
+```
+nix-shell shell.nix
+```
+
+run the init (only need to run this once):
+```
+inv init
+```
+
+compile:
+```
+inv build
+```
+
+#### Getting stuck in bootloop after many flashes?
+- Might be something to do with the heartrate sensor/lib. Disabling it may help.
+  - ref: https://discord.com/channels/717057001594683422/717057210211106826/804503020310102026
+
+
+
+
 # ATCwatch  -WatcH
 Custom Arduino C++ firmware for the P8 and PineTime plus many more DaFit Smartwatches
 
