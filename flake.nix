@@ -48,7 +48,7 @@
           nativeBuildInputs = with pkgs; [
             zigpkgs.master
             rust
-            gcc-arm-embedded-6
+            gcc-arm-embedded
             python311Packages.adafruit-nrfutil
             #arduino
             arduino-cli

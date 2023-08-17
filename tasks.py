@@ -27,8 +27,10 @@ def init(c):
     else:
         c.run('cp %s %s' % (platform_txt_uri, platform_txt_old_uri))
 
+    libraries_dir = "ATCwatch\/libraries"
+    extra_flags = '-Wl,--allow-multiple-definition' # see: https://github.com/rust-lang/compiler-builtins/issues/353
     c.run("sed -i 's/\(compiler.path=\).*/\\1/' " + platform_txt_uri)
-    c.run("sed -i 's/\(compiler.ldflags=.*\)/\\1 -L \{runtime\.tools\.gcc-arm-none-eabi-5_2-2015q4\.path\}\/lib -L " + libraries_dir + "\/atc-rust\/src\/cortex-m4 -L " + libraries_dir + "\/atc-zig\/src\/cortex-m4 -L " + libraries_dir + "\/HRS3300-Arduino-Library\/src\/cortex-m4 /' " + platform_txt_uri)
+    c.run("sed -i 's/\(compiler.ldflags=.*\)/\\1 " + extra_flags + " -L " + libraries_dir + "\/atc-rust\/src\/cortex-m4 -L " + libraries_dir + "\/atc-zig\/src\/cortex-m4 -L " + libraries_dir + "\/HRS3300-Arduino-Library\/src\/cortex-m4 /' " + platform_txt_uri)
     c.run("sed -i 's/\(recipe.c.combine.pattern=.*\)/\\1 -W -lheart -latcrust -latczig /' " + platform_txt_uri)
     print("--- init complete ---")
 
