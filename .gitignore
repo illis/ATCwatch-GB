@@ -1,3 +1,5 @@
 .direnv
 .arduino
 ATCwatch/build
+libraries/lv_arduino
+libraries/HRS3300-Arduino-Library

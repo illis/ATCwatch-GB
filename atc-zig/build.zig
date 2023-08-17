@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) void {
     });
 
     main_tests.linkLibC();
-    main_tests.addIncludePath(.{ .cwd_relative = "../libraries/atcnfty/src/" });
+    main_tests.addIncludePath(.{ .cwd_relative = "../libraries/atc-rust/src/" });
 
     const run_main_tests = b.addRunArtifact(main_tests);
 
