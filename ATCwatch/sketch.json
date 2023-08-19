@@ -1,0 +1,6 @@
+{
+  "cpu": {
+    :
+    "fqbn": "nRF52D6Fitness:nRF5:dsd6Watch:softdevice=onlySoftDevice",
+  }
+}

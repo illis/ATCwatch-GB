@@ -44,11 +44,13 @@
           ARDUINO_DIRECTORIES_DATA= "./.arduino/data";
           ARDUINO_DIRECTORIES_DOWNLOADS= "./.arduino/data/staging";
           ARDUINO_DIRECTORIES_USER= "./ATCwatch/";
+          ARDUINO_FQBN = "nRF52D6Fitness:nRF5:dsd6Watch:softdevice=onlySoftDevice";
 
           nativeBuildInputs = with pkgs; [
             zigpkgs.master
             rust
             gcc-arm-embedded
+            bear # for generating commpile_commands for clangd completion
             python311Packages.adafruit-nrfutil
             #arduino
             arduino-cli

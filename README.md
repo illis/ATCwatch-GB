@@ -34,6 +34,14 @@ compile:
 ```
 inv build
 ```
+ 
+## Dev:
+### LSP
+arduino-language-server uses clangd.
+To generate compile_commands.json for clangd completion run:
+```
+inv bear
+```
 
 #### Getting stuck in bootloop after many flashes?
 - Might be something to do with the heartrate sensor/lib. Disabling it may help.
