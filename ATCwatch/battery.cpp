@@ -78,7 +78,8 @@ void check_battery_status() {
     if (get_battery_percent() < 15) {
       if (!batteryWasNotified) {
         batteryWasNotified = true;
-        show_push("Battery Empty");
+        const char *msg = "Battery Empty";
+        show_push(msg, 13);
       }
     } else if (get_battery_percent() < 5) {
       system_off();

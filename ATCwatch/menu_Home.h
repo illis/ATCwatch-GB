@@ -96,7 +96,7 @@ class HomeScreen : public Screen
 
       lv_obj_set_width(label_msg, 240);
       lv_label_set_text(label_msg, " ");
-      lv_label_set_text(label_msg, string2char(get_push_msg(30)));
+      lv_label_set_text(label_msg, get_push_msg_c());
       lv_obj_align(label_msg, img_msg, LV_ALIGN_OUT_RIGHT_MID, 2, 0);
     }
 

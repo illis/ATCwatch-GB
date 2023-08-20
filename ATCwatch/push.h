@@ -10,8 +10,12 @@
 #include "atcrust.h"
 #include "atczig.h"
 
+#define MSGTEXT_MAX_LEN 30
+
 void init_push();
-void show_push(String pushMSG);
+void show_push_wakeup();
+const char* show_push_get_buffer();
+void show_push(const char *msg, uint8_t len);
 void show_http(String httpMSG);
 void show_appName(String nameMSG);
 void show_msgBody(String bodyMSG);
@@ -20,7 +24,7 @@ void show_tick(String titlMSG);
 void show_notf(String notf);
 void show_notf_c(const char *notfString);
 String get_http_msg(int returnLength=0);
-String get_push_msg(int returnLength=0);
+char *get_push_msg_c();
 String get_name_msg(int returnLength=0);
 String get_body_msg(int returnLength=0);
 String get_titl_msg(int returnLength=0);

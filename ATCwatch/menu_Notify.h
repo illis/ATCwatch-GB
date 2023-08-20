@@ -17,6 +17,7 @@
 #include "push.h"
 #include "heartrate.h"
 #include "fonts.h"
+#include "screen_style.h"
 
 
 class NotifyScreen : public Screen

@@ -25,8 +25,8 @@ BLECharacteristic   RXchar        = BLECharacteristic("0001", BLEWriteWithoutRes
 bool vars_ble_connected = false;
 
 BLEService bangleService =                       BLEService("6e400001b5a3f393e0a9e50e24dcca9e");
-BLECharacteristic   bangleTXchar        = BLECharacteristic("6e400003b5a3f393e0a9e50e24dcca9e", BLENotify, 20);
-BLECharacteristic   bangleRXchar        = BLECharacteristic("6e400002b5a3f393e0a9e50e24dcca9e", BLEWriteWithoutResponse, 20);
+BLECharacteristic   bangleTXchar        = BLECharacteristic("6e400003b5a3f393e0a9e50e24dcca9e", BLENotify, BLE_ATTRIBUTE_MAX_VALUE_LENGTH);
+BLECharacteristic   bangleRXchar        = BLECharacteristic("6e400002b5a3f393e0a9e50e24dcca9e", BLEWriteWithoutResponse, BLE_ATTRIBUTE_MAX_VALUE_LENGTH);
 
 
 void init_ble() {
@@ -55,6 +55,14 @@ void init_ble() {
 char rbuff[2048];
 uint8_t rbuff_pos = 0;
 
+void ble_tx_bangle(const char* cmd, uint8_t len) {
+  uint8_t i = 0;
+  while (i < len) {
+    bangleTXchar.setValue(cmd + i);
+    i += BLE_ATTRIBUTE_MAX_VALUE_LENGTH;
+  }
+    bangleTXchar.setValue("\r\n");
+}
 void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) {
 
   memcpy(&rbuff[rbuff_pos], characteristic.value(), characteristic.valueLength());
@@ -71,12 +79,13 @@ void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) 
   if (end) {
     if (rbuff[0] != '\u0010') {
       // gadget bridge sends this first
-      // prob unnecessary
+      // prob unnecessary to check
       rbuff_pos = 0;
       return;
     }
 
-    process_bangle_input(rbuff, rbuff_pos, setTime, show_notf_c, get_notf_data());
+    process_bangle_input(rbuff, rbuff_pos, ble_tx_bangle, setTime, show_notf_c, get_notf_data(), show_push_get_buffer(), MSGTEXT_MAX_LEN);
+    show_push_wakeup();
     rbuff_pos = 0;
   }
 }
@@ -155,7 +164,8 @@ void filterCmd(String Command) {
     ble_write("AT+BATT:" + String(get_battery_percent()));
   } else if (Command.substring(0, 8) == "AT+PUSH=") {
     ble_write("AT+PUSH:OK");
-    show_push(Command.substring(8));
+    String msg = Command.substring(8);
+    show_push(msg.c_str(), msg.length());
   } else if (Command == "BT+VER") {
     ble_write("BT+VER:P8");
   } else if (Command == "AT+VER") {

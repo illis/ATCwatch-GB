@@ -111,14 +111,72 @@ fn findGBCallIndexes(s: [*c]u8) GBCallIndexes {
     return idxs;
 }
 
-const set_time_callback_op = *const fn (epoch: c_long) callconv(.C) void;
-const show_notf_callback_op = *const fn (msg: [*]const u8) callconv(.C) void;
+const IdxType = union(enum) {
+    notify: GBNotifyIndexes,
+    call: GBCallIndexes,
 
-// export fn process_bangle_input(s: [*c]u8, len: u8, set_time_cb: set_time_callback_op, show_notf_cb: show_notf_callback_op) void {
-export fn process_bangle_input(s: [*c]u8, len: u8, set_time_cb: set_time_callback_op, show_notf_cb: show_notf_callback_op, notf_data: [*c]c.NotfData) void {
+    fn copy_to_buffer_se(s: [*c]const u8, se: StartEnd, buffer: [*c]u8, buffer_len: u8, i: u8) u8 {
+        var se_len = se.end - se.start;
+        var maxlen = @min(se_len, buffer_len - i);
+        if (maxlen > 0) {
+            _ = c.memcpy(buffer + i, s + se.start, maxlen);
+            return maxlen;
+        } else {
+            return 0;
+        }
+    }
+
+    fn copy_to_buffer(comptime s: [*c]const u8, buffer: [*c]u8, buffer_len: u8, i: u8) u8 {
+        comptime var strlen = std.zig.c_builtins.__builtin_strlen(s);
+        var se = StartEnd{ .start = 0, .end = strlen };
+        return copy_to_buffer_se(@as([*c]const u8, s), se, buffer, buffer_len, i);
+    }
+
+    fn check_src(comptime s1: [*c]const u8, s2: [*c]const u8, se2: StartEnd) bool {
+        comptime var s1len = std.zig.c_builtins.__builtin_strlen(s1);
+        if (s1len != (se2.end - se2.start)) return false;
+
+        var result = c.strncmp(s1, s2 + se2.start, s1len);
+        return result == 0;
+    }
+
+    fn set_short_notf_string(self: IdxType, buffer: [*c]u8, buffer_len: u8, s: [*c]u8) void {
+        var i: u8 = 0;
+
+        switch (self) {
+            IdxType.call => |*idxs| {
+                i += copy_to_buffer("c: ", buffer, buffer_len, i);
+                i += copy_to_buffer_se(s, idxs.name, buffer, buffer_len, i);
+                i += copy_to_buffer(" ", buffer, buffer_len, i);
+                i += copy_to_buffer_se(s, idxs.number, buffer, buffer_len, i);
+            },
+            IdxType.notify => |*idxs| {
+                if (check_src("K-9 Mail", s, idxs.src)) {
+                    i += copy_to_buffer("e: ", buffer, buffer_len, i);
+                    i += copy_to_buffer_se(s, idxs.title, buffer, buffer_len, i);
+                } else {
+                    i += copy_to_buffer("n: ", buffer, buffer_len, i);
+                    i += copy_to_buffer_se(s, idxs.src, buffer, buffer_len, i);
+                    i += copy_to_buffer(" ", buffer, buffer_len, i);
+                    i += copy_to_buffer_se(s, idxs.title, buffer, buffer_len, i);
+                }
+            },
+            // else => {},
+        }
+
+        buffer[i] = 0; // null out
+    }
+};
+
+const tx_callback_op = *const fn (msg: [*]const u8, len: c_uint) callconv(.C) void;
+const set_time_callback_op = *const fn (epoch: c_long) callconv(.C) void;
+const show_notf_callback_op = *const fn (msg: [*c]const u8) callconv(.C) void;
+
+export fn process_bangle_input(s: [*c]u8, len: u8, tx_cb: tx_callback_op, set_time_cb: set_time_callback_op, show_notf_cb: show_notf_callback_op, notf_data: [*c]c.NotfData, short_buffer: [*c]u8, short_buffer_len: u8) void {
     const settime_check_str = "\x10setTime(";
-    const notify_set_check_str = "\x10GB({t:\"notify";
-    const call_set_check_str = "\x10GB({t:\"call";
+    const notify_set_check_str = "\x10GB({t:\"notify\"";
+    const call_set_check_str = "\x10GB({t:\"call\"";
+    const is_gps_active_check_str_gps_active_check_str = "\x10GB({t:\"is_gps_active\"})";
 
     if (c.strncmp(settime_check_str, s, settime_check_str.len) == 0) {
         // setTime(1692075012);E.setTimeZone(12.0);(s=>s&&(s.timezone=12.0,require('Storage').write('setting.json',s)))(require('Storage').readJSON('setting.json',1))
@@ -169,10 +227,18 @@ export fn process_bangle_input(s: [*c]u8, len: u8, set_time_cb: set_time_callbac
         }
     } else if (c.strncmp(notify_set_check_str, s, notify_set_check_str.len) == 0) {
         var idxs = findGBNotifyIndexes(s);
-        _ = setNotfData_se(notf_data, s, &idxs.sender, &idxs.subject, &idxs.body);
-    } else if (c.strncmp(call_set_check_str, s, notify_set_check_str.len) == 0) {
+        _ = setNotfData_se(notf_data, s, &idxs.src, &idxs.title, &idxs.body);
+        var it = IdxType{ .notify = idxs };
+        it.set_short_notf_string(short_buffer, short_buffer_len, s);
+    } else if (c.strncmp(call_set_check_str, s, call_set_check_str.len) == 0) {
         var idxs = findGBCallIndexes(s);
-        _ = setNotfData_se(notf_data, s, &idxs.t, &idxs.t, &idxs.t);
+        _ = setNotfData_se(notf_data, s, &idxs.t, &idxs.name, &idxs.number);
+
+        var it = IdxType{ .call = idxs };
+        it.set_short_notf_string(short_buffer, short_buffer_len, s);
+    } else if (c.strncmp(is_gps_active_check_str_gps_active_check_str, s, is_gps_active_check_str_gps_active_check_str.len) == 0) {
+        var msg = "({t:\"gps_power\",status:true";
+        tx_cb(msg, msg.len);
     } else if (false) {
         set_time_cb(10 * 365 * 24 * 60 * 60); // add ten years from epoch
         var msg: [17:0]u8 = undefined;
@@ -185,19 +251,9 @@ export fn process_bangle_input(s: [*c]u8, len: u8, set_time_cb: set_time_callbac
         // msg[2 + 3 + 1 + 5 + 3] = si[1];
 
         show_notf_cb(&msg);
+    } else {
+        _ = setNotfData(notf_data, s[0..16], s[16..32], s[32..48]);
     }
-    // var buff: [4096:0]u8 = undefined;
-
-    // var i: usize = 0;
-    // while (i < 4096) {
-    //     buff[i + 3] = s[i];
-    //     if (s[i] == 0) {
-    //         break;
-    //     }
-    // }
-
-    // not send this - seems to break something
-    // show_notf_cb(&buff);
 }
 
 fn copy_notf_field(f: []u8, f_len: u8, n: []u8, n_len: u8) void {
@@ -238,6 +294,16 @@ fn setNotfData(data: *c.NotfData, app_name: []u8, title: []u8, body: []u8) usize
 
 fn setNotfData_se(data: *c.NotfData, s: [*c]u8, app_se: *StartEnd, title_se: *StartEnd, body_se: *StartEnd) usize {
     return setNotfData(data, to_s(s, app_se), to_s(s, title_se), to_s(s, body_se));
+}
+
+export fn to_string_int_c(i: u8) callconv(.C) *const u8 {
+    var out: [2]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&out);
+
+    std.mem.copy(u8, &out, "00");
+    _ = std.fmt.allocPrint(fba.allocator(), "{d}", .{i}) catch unreachable;
+
+    return @ptrCast(&out);
 }
 
 fn to_string_int(i: u8) [2]u8 {

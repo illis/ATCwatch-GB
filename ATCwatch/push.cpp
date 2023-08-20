@@ -11,8 +11,10 @@
 #include "inputoutput.h"
 #include "push.h"
 #include "TimeLib.h"
+#include "atcrust.h"
+#include "sys/_stdint.h"
 
-String msgText = " ";
+char msgText_chars[MSGTEXT_MAX_LEN]; // = 0;
 String httpText = " ";
 String nameText = " ";
 String msgBodyText = " ";
@@ -52,6 +54,7 @@ Notf *get_notf(int idx) {
 
 
 void init_push() {
+  msgText_chars[0] = 0;
 }
 
 String filter_string(String str)
@@ -73,19 +76,29 @@ String filter_string(String str)
   return str;
 }
 
-void show_push(String pushMSG) {
-  int commaIndex = pushMSG.indexOf(',');
-  int secondCommaIndex = pushMSG.indexOf(',', commaIndex + 1);
-  int lastCommaIndex = pushMSG.indexOf(',', secondCommaIndex + 1);
-  String MsgText = pushMSG.substring(commaIndex + 1, secondCommaIndex);
-  int timeShown = pushMSG.substring(secondCommaIndex + 1, lastCommaIndex).toInt();
-  int SymbolNr = pushMSG.substring(lastCommaIndex + 1).toInt();
-  msgText = filter_string(MsgText);
+void set_text_c(char *dst, String src, uint8_t maxlen) {
+  int max = min(maxlen, src.length());
+  dst[max] = 0;
+  for (; max >= 0; --max) {
+    dst[max] = src[max];
+  }
+}
+
+void show_push_wakeup() {
   sleep_up(WAKEUP_BLEPUSH);
   display_notify();
   set_motor_ms();
   set_led_ms(100);
   set_sleep_time();
+}
+
+const char* show_push_get_buffer() {
+  return msgText_chars;
+}
+
+void show_push(const char *msg, uint8_t len) {
+  memcpy(msgText_chars, msg, min(MSGTEXT_MAX_LEN, len));
+  show_push_wakeup();
 }
 
 void show_http(String httpMSG) {
@@ -129,19 +142,8 @@ String get_http_msg(int returnLength) {
   return httpText;
 }
 
-String get_push_msg(int returnLength) {
-  if (returnLength != 0 || msgText.length() == returnLength) {
-    if (msgText.length() < returnLength) {
-      String tempText = msgText;
-      int toSmall = returnLength - msgText.length();
-      for (int i = 0; i < toSmall; i++) {
-        tempText += " ";
-      }
-      return tempText;
-    } else if (msgText.length() > returnLength)
-      return msgText.substring(0, returnLength - 3) + "...";
-  }
-  return msgText;
+char *get_push_msg_c() {
+  return msgText_chars;
 }
 
 String get_name_msg(int returnLength) {
