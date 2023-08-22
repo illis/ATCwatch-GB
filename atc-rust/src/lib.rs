@@ -19,6 +19,10 @@ pub fn panic(_info: &PanicInfo) -> ! {
 use core::cmp::min;
 use core::slice::from_raw_parts;
 
+// Taken from android app: app/src/main/java/nodomain/freeyourgadget/gadgetbridge/service/devices/banglejs/BangleJSDeviceSupport.java
+// added ~20% for unicode images  400 * 1.20 = 480, may as well just make it a round 512
+// TODO: check this is ok
+pub const ANDROID_MAX_CROP_TO_LENGTH: usize = 512;
 pub const NOTF_MAX: usize = 5;
 pub const NOTF_APPNAME_LIMIT: usize = 64;
 pub const NOTF_TITLE_LIMIT: usize = 64;

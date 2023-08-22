@@ -29,6 +29,9 @@ BLECharacteristic   bangleTXchar        = BLECharacteristic("6e400003b5a3f393e0a
 BLECharacteristic   bangleRXchar        = BLECharacteristic("6e400002b5a3f393e0a9e50e24dcca9e", BLEWriteWithoutResponse, BLE_ATTRIBUTE_MAX_VALUE_LENGTH);
 
 
+char bleRxData_buffer[ANDROID_MAX_CROP_TO_LENGTH];
+BLERxData bleRxData;
+
 void init_ble() {
   blePeripheral.setLocalName("Espruino");
   blePeripheral.setConnectionInterval(400,401);
@@ -50,10 +53,17 @@ void init_ble() {
   blePeripheral.setEventHandler(BLEDisconnected, ble_DisconnectHandler);
   blePeripheral.begin();
   ble_feed();
-}
 
-char rbuff[2048];
-uint8_t rbuff_pos = 0;
+  bleRxData = BLERxData {
+    .buffer_pos = 0,
+    .buffer = (const char *) bleRxData_buffer,
+    .short_buffer_len = MSGTEXT_MAX_LEN,
+    .short_msg_buffer = show_push_get_buffer(),
+    .notfs = get_notf_data(),
+    .set_time_cb = setTime,
+    .wakeup_cb = show_push_wakeup,
+  };
+}
 
 void ble_tx_bangle(const char* cmd, uint8_t len) {
   uint8_t i = 0;
@@ -63,8 +73,14 @@ void ble_tx_bangle(const char* cmd, uint8_t len) {
   }
     bangleTXchar.setValue("\r\n");
 }
-void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) {
 
+char rbuff[2048];
+uint8_t rbuff_pos = 0;
+
+void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) {
+  handle_ble_rx(&bleRxData, characteristic.value(), characteristic.valueLength());
+
+#ifdef NUKE
   memcpy(&rbuff[rbuff_pos], characteristic.value(), characteristic.valueLength());
   rbuff_pos += characteristic.valueLength();
 
@@ -88,6 +104,7 @@ void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) 
     show_push_wakeup();
     rbuff_pos = 0;
   }
+#endif
 }
 
 void ble_feed() {
