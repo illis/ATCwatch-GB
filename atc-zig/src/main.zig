@@ -33,6 +33,7 @@ const Keys = enum {
     sender,
     number,
     subject,
+    tel,
 };
 
 const KVIndexes = struct {
@@ -193,6 +194,24 @@ fn process_set_time(rxData: *BLERxData) void {
     rxData.set_time_cb(epoch);
 }
 
+fn is_notification_sms(kps: *std.EnumMap(Keys, StartEnd)) bool {
+    if (kps.get(Keys.title)) |v| {
+        // should have an empty title
+        if (v.start != v.end) return false;
+    } else return false;
+
+    if (kps.get(Keys.subject)) |v| {
+        // should have an empty subject t itle
+        if (v.start != v.end) return false;
+    } else return false;
+
+    if (!kps.contains(Keys.body)) return false;
+    if (!kps.contains(Keys.sender)) return false;
+    if (!kps.contains(Keys.tel)) return false;
+
+    return true;
+}
+
 fn process_notification(rxData: *BLERxData) void {
     var kps = find_kps(rxData.buffer, 4);
 
@@ -203,6 +222,12 @@ fn process_notification(rxData: *BLERxData) void {
         i += copy_to_buffer_null(rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
 
         _ = setNotfData_se(rxData.notfs, rxData.buffer, &kps.get(Keys.src).?, &kps.get(Keys.title).?, &kps.get(Keys.body).?);
+    } else if (is_notification_sms(&kps)) {
+        i += copy_to_buffer("s: ", rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
+        i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.sender).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
+        i += copy_to_buffer_null(rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
+
+        _ = setNotfData_se_1(rxData.notfs, rxData.buffer, "sms", &kps.get(Keys.sender).?, &kps.get(Keys.body).?);
     } else {
         i += copy_to_buffer("n: ", rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
         i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.src).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
@@ -302,6 +327,10 @@ fn setNotfData(data: *c.NotfData, app_name: []u8, title: []u8, body: []u8) usize
 
 fn setNotfData_se(data: *c.NotfData, s: [*c]u8, app_se: *const StartEnd, title_se: *const StartEnd, body_se: *const StartEnd) usize {
     return setNotfData(data, to_s(s, app_se), to_s(s, title_se), to_s(s, body_se));
+}
+
+fn setNotfData_se_1(data: *c.NotfData, s: [*c]u8, app_name: []const u8, title_se: *const StartEnd, body_se: *const StartEnd) usize {
+    return setNotfData(data, @constCast(app_name), to_s(s, title_se), to_s(s, body_se));
 }
 
 export fn to_string_int_c(i: u8) callconv(.C) *const u8 {
