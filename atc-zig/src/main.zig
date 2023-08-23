@@ -270,32 +270,6 @@ export fn handle_ble_rx(rxData: *BLERxData, input_val: [*c]u8, input_val_len: u8
     }
 }
 
-export fn process_bangle_input(s: [*c]u8, len: u8, tx_cb: tx_callback_op, set_time_cb: set_time_callback_op, show_notf_cb: show_notf_callback_op, notf_data: [*c]c.NotfData, short_buffer: [*c]u8, short_buffer_len: u8) void {
-    _ = short_buffer_len;
-    _ = short_buffer;
-    _ = len;
-    const is_gps_active_check_str_gps_active_check_str = "\x10GB({t:\"is_gps_active\"})";
-
-    if (c.strncmp(is_gps_active_check_str_gps_active_check_str, s, is_gps_active_check_str_gps_active_check_str.len) == 0) {
-        var msg = "({t:\"gps_power\",status:true";
-        tx_cb(msg, msg.len);
-    } else if (false) {
-        set_time_cb(10 * 365 * 24 * 60 * 60); // add ten years from epoch
-        var msg: [17:0]u8 = undefined;
-        std.mem.copy(u8, &msg, "\x03\x01\x0azigdtestxxxxz\x00");
-        //msg[2 + 3 + 1 + 5] = s[0];
-        //msg[2 + 3 + 1 + 5 + 1] = s[1];
-
-        // var si = to_string_int(s[0]);
-        // msg[2 + 3 + 1 + 5 + 2] = si[0];
-        // msg[2 + 3 + 1 + 5 + 3] = si[1];
-
-        show_notf_cb(&msg);
-    } else {
-        _ = setNotfData(notf_data, s[0..16], s[16..32], s[32..48]);
-    }
-}
-
 fn setNotfData(data: *c.NotfData, app_name: []u8, title: []u8, body: []u8) usize {
     if (data.notf_count == c.NOTF_MAX) {
         // we need to shuffle idx's

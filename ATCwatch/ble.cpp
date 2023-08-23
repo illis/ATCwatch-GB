@@ -74,37 +74,8 @@ void ble_tx_bangle(const char* cmd, uint8_t len) {
     bangleTXchar.setValue("\r\n");
 }
 
-char rbuff[2048];
-uint8_t rbuff_pos = 0;
-
 void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) {
   handle_ble_rx(&bleRxData, characteristic.value(), characteristic.valueLength());
-
-#ifdef NUKE
-  memcpy(&rbuff[rbuff_pos], characteristic.value(), characteristic.valueLength());
-  rbuff_pos += characteristic.valueLength();
-
-  bool end = false;
-  if (rbuff[rbuff_pos - 1] == '\n' )  {
-    //  null bit might help when looking for end of string? not sure if we actually use this
-    rbuff[rbuff_pos] = 0;
-    end = true;
-  }
-
-
-  if (end) {
-    if (rbuff[0] != '\u0010') {
-      // gadget bridge sends this first
-      // prob unnecessary to check
-      rbuff_pos = 0;
-      return;
-    }
-
-    process_bangle_input(rbuff, rbuff_pos, ble_tx_bangle, setTime, show_notf_c, get_notf_data(), show_push_get_buffer(), MSGTEXT_MAX_LEN);
-    show_push_wakeup();
-    rbuff_pos = 0;
-  }
-#endif
 }
 
 void ble_feed() {

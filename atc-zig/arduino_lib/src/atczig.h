@@ -29,9 +29,6 @@ extern "C" {
 
   int32_t add(int32_t a, int32_t b);
 
-#ifdef NUKE
-  void process_bangle_input(const char *s, const uint8_t len, tx_callback tx_cb, set_time_callback set_time_cb, show_notf_callback show_notf_cb, struct NotfData *notfData, const char* short_msg_buffer, uint8_t short_buffer_len);
-#endif // NUKE
   void handle_ble_rx(BLERxData *bleRxData, const unsigned char *val, uint8_t val_len);
   void generate_short_notf_string(Notf *n, const char *buffer, uint8_t buffer_len);
 
