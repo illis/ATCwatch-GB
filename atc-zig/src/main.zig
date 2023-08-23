@@ -221,19 +221,19 @@ fn process_notification(rxData: *BLERxData) void {
         i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.title).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
         i += copy_to_buffer_null(rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
 
-        _ = setNotfData_se(rxData.notfs, rxData.buffer, &kps.get(Keys.src).?, &kps.get(Keys.title).?, &kps.get(Keys.body).?);
+        _ = setNotfData_se(rxData.notfs, rxData.buffer, kps, NotfDataInput{ .key = Keys.src }, NotfDataInput{ .key = Keys.title }, NotfDataInput{ .key = Keys.body });
     } else if (is_notification_sms(&kps)) {
         i += copy_to_buffer("s: ", rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
         i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.sender).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
         i += copy_to_buffer_null(rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
 
-        _ = setNotfData_se_1(rxData.notfs, rxData.buffer, "sms", &kps.get(Keys.sender).?, &kps.get(Keys.body).?);
+        _ = setNotfData_se(rxData.notfs, rxData.buffer, kps, NotfDataInput{ .str = "sms" }, NotfDataInput{ .key = Keys.sender }, NotfDataInput{ .key = Keys.body });
     } else {
         i += copy_to_buffer("n: ", rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
         i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.src).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
         i += copy_to_buffer_null(rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
 
-        _ = setNotfData_se(rxData.notfs, rxData.buffer, &kps.get(Keys.src).?, &kps.get(Keys.title).?, &kps.get(Keys.body).?);
+        _ = setNotfData_se(rxData.notfs, rxData.buffer, kps, NotfDataInput{ .key = Keys.src }, NotfDataInput{ .key = Keys.title }, NotfDataInput{ .key = Keys.body });
     }
 }
 
@@ -245,7 +245,7 @@ fn process_call(rxData: *BLERxData) void {
     i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.name).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
     i += copy_to_buffer_null(rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
 
-    _ = setNotfData_se(rxData.notfs, rxData.buffer, &kps.get(Keys.t).?, &kps.get(Keys.name).?, &kps.get(Keys.number).?);
+    _ = setNotfData_se(rxData.notfs, rxData.buffer, kps, NotfDataInput{ .key = Keys.t }, NotfDataInput{ .key = Keys.name }, NotfDataInput{ .key = Keys.number });
 }
 
 fn handle_input_msg(rxData: *BLERxData) void {
@@ -325,12 +325,28 @@ fn setNotfData(data: *c.NotfData, app_name: []u8, title: []u8, body: []u8) usize
     return data.notf_count;
 }
 
-fn setNotfData_se(data: *c.NotfData, s: [*c]u8, app_se: *const StartEnd, title_se: *const StartEnd, body_se: *const StartEnd) usize {
-    return setNotfData(data, to_s(s, app_se), to_s(s, title_se), to_s(s, body_se));
-}
+const NotfDataInputType = enum {
+    se,
+    str,
+    key,
+};
 
-fn setNotfData_se_1(data: *c.NotfData, s: [*c]u8, app_name: []const u8, title_se: *const StartEnd, body_se: *const StartEnd) usize {
-    return setNotfData(data, @constCast(app_name), to_s(s, title_se), to_s(s, body_se));
+const NotfDataInput = union(NotfDataInputType) {
+    se: *const StartEnd,
+    str: []const u8,
+    key: Keys,
+
+    fn get_u8(self: NotfDataInput, s: [*c]u8, kps: std.EnumMap(Keys, StartEnd)) []u8 {
+        return switch (self) {
+            NotfDataInputType.se => |se| to_s(s, se),
+            NotfDataInputType.str => |str| @constCast(str),
+            NotfDataInputType.key => |key| to_s(s, &kps.get(key).?),
+        };
+    }
+};
+
+fn setNotfData_se(data: *c.NotfData, s: [*c]u8, kps: std.EnumMap(Keys, StartEnd), app: NotfDataInput, title: NotfDataInput, body: NotfDataInput) usize {
+    return setNotfData(data, app.get_u8(s, kps), title.get_u8(s, kps), body.get_u8(s, kps));
 }
 
 export fn to_string_int_c(i: u8) callconv(.C) *const u8 {
