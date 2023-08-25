@@ -18,7 +18,7 @@ extern "C" {
   // this also needs to be duplicated in the zib lib
   // typedef struct __attribute__ ((__packed__)) BLERxData {
   typedef struct BLERxData {
-    uint8_t buffer_pos;
+    uint16_t buffer_pos;
     const char* buffer;
     uint8_t short_buffer_len;
     const char* short_msg_buffer;

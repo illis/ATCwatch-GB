@@ -8,8 +8,8 @@ const c = @cImport({
 });
 
 const StartEnd = struct {
-    start: u8 = 0,
-    end: u8 = 0,
+    start: u16 = 0,
+    end: u16 = 0,
 };
 
 fn to_s(s: [*c]u8, se: *const StartEnd) []u8 {
@@ -42,7 +42,7 @@ const KVIndexes = struct {
     val_se: StartEnd = StartEnd{},
 };
 
-fn find_next_kp(s: [*c]u8, start_idx: u8) KVIndexes {
+fn find_next_kp(s: [*c]u8, start_idx: u16) KVIndexes {
     var kp: KVIndexes = KVIndexes{};
     var key_se = StartEnd{};
 
@@ -87,9 +87,9 @@ fn find_next_kp(s: [*c]u8, start_idx: u8) KVIndexes {
     return kp;
 }
 
-fn find_kps(s: [*c]u8, start_idx: u8) std.EnumMap(Keys, StartEnd) {
+fn find_kps(s: [*c]u8, start_idx: u16) std.EnumMap(Keys, StartEnd) {
     var map = std.EnumMap(Keys, StartEnd){};
-    var i: u8 = start_idx;
+    var i: u16 = start_idx;
 
     std.debug.assert(s[i] == '{');
     i += 1;
@@ -117,7 +117,7 @@ fn check_src(comptime s1: [*c]const u8, s2: [*c]const u8, se2: StartEnd) bool {
     return result == 0;
 }
 
-fn copy_to_buffer_se(s: [*c]const u8, se: StartEnd, buffer: [*c]u8, buffer_len: u8, i: u8) u8 {
+fn copy_to_buffer_se(s: [*c]const u8, se: StartEnd, buffer: [*c]u8, buffer_len: u16, i: u16) u16 {
     var se_len = se.end - se.start;
     var maxlen = @min(se_len, buffer_len - i);
     if (maxlen > 0) {
@@ -130,13 +130,13 @@ fn copy_to_buffer_se(s: [*c]const u8, se: StartEnd, buffer: [*c]u8, buffer_len: 
     return se_len;
 }
 
-fn copy_to_buffer(comptime s: [*c]const u8, buffer: [*c]u8, buffer_len: u8, i: u8) u8 {
+fn copy_to_buffer(comptime s: [*c]const u8, buffer: [*c]u8, buffer_len: u16, i: u16) u16 {
     comptime var strlen = std.zig.c_builtins.__builtin_strlen(s);
     var se = StartEnd{ .start = 0, .end = strlen };
     return copy_to_buffer_se(@as([*c]const u8, s), se, buffer, buffer_len, i);
 }
 
-fn copy_to_buffer_null(buffer: [*c]u8, buffer_len: u8, i: u8) u8 {
+fn copy_to_buffer_null(buffer: [*c]u8, buffer_len: u16, i: u16) u16 {
     if (i < buffer_len) {
         buffer[i] = 0;
         return 1;
@@ -153,7 +153,7 @@ const wakeup_callback_op = *const fn () callconv(.C) void;
 
 // this also needs to be duplicated in atczig.h
 const BLERxData = extern struct {
-    buffer_pos: u8,
+    buffer_pos: u16,
     buffer: [*c]u8,
     short_msg_buffer_len: u8,
     short_msg_buffer: [*c]u8,
@@ -215,7 +215,7 @@ fn is_notification_sms(kps: *std.EnumMap(Keys, StartEnd)) bool {
 fn process_notification(rxData: *BLERxData) void {
     var kps = find_kps(rxData.buffer, 4);
 
-    var i: u8 = 0;
+    var i: u16 = 0;
     if (check_src("K-9 Mail", rxData.buffer, kps.get(Keys.src).?)) {
         i += copy_to_buffer("e: ", rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
         i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.title).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
@@ -240,7 +240,7 @@ fn process_notification(rxData: *BLERxData) void {
 fn process_call(rxData: *BLERxData) void {
     var kps = find_kps(rxData.buffer, 4);
 
-    var i: u8 = 0;
+    var i: u16 = 0;
     i += copy_to_buffer("c: ", rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
     i += copy_to_buffer_se(rxData.buffer, kps.get(Keys.name).?, rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
     i += copy_to_buffer_null(rxData.short_msg_buffer, rxData.short_msg_buffer_len, i);
@@ -388,6 +388,19 @@ test "check GB call" {
     try testing.expectEqualStrings("Testnum", s[idxs.get(Keys.number).?.start..idxs.get(Keys.number).?.end]);
 }
 
+test "check long notification" {
+    var s_original = "\x10GB({t:\"notify\",id:1692789752,src:\"K-9 Mail\",title:\"xxxxxxxxxxxxxxxxxxx\",subject:\"\",body:\"xxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #...\",sender:\"\"})";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_kps(s, 4);
+
+    try testing.expectEqualStrings("notify", s[idxs.get(Keys.t).?.start..idxs.get(Keys.t).?.end]);
+    try testing.expectEqualStrings("K-9 Mail", s[idxs.get(Keys.src).?.start..idxs.get(Keys.src).?.end]);
+    try testing.expectEqualStrings("1692789752", s[idxs.get(Keys.id).?.start..idxs.get(Keys.id).?.end]);
+    try testing.expectEqualStrings("", s[idxs.get(Keys.subject).?.start..idxs.get(Keys.subject).?.end]);
+    try testing.expectEqualStrings("xxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #...", s[idxs.get(Keys.body).?.start..idxs.get(Keys.body).?.end]);
+}
+
 test "check find next kp w/ string" {
     var s_original = "t:\"c\\\"all\"";
     var s: [*c]u8 = @ptrCast(@constCast(s_original));
@@ -427,7 +440,7 @@ test "copy to buffer test" {
 
     const b_len: u8 = 30;
     var b: [b_len]u8 = undefined;
-    var i: u8 = 0;
+    var i: u16 = 0;
     i += copy_to_buffer("n: ", &b, b_len, i);
     i += copy_to_buffer_se(s, kps.get(Keys.cmd) orelse undefined, &b, b_len, i);
     i += copy_to_buffer_null(&b, b_len, i);
