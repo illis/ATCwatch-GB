@@ -81,6 +81,7 @@ class HttpScreen : public Screen
 
     virtual void lv_event_class(lv_obj_t * object, lv_event_t event)
     {
+#ifdef D6NOTIFICATION
       if (object == btn1 && event == LV_EVENT_SHORT_CLICKED) {
         ble_write("AT+HTTP:CMD" + String(millis()));
       } else if (object == btn2 && event == LV_EVENT_SHORT_CLICKED) {
@@ -90,6 +91,7 @@ class HttpScreen : public Screen
       } else if (object == btn4 && event == LV_EVENT_SHORT_CLICKED) {
         ble_write("AT+HTTP:CLOSE");
       }
+#endif // D6NOTIFICATION
     }
 
   private:

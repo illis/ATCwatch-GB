@@ -66,12 +66,16 @@ class LogScreen : public Screen
     {
       if (object == btn1 && event == LV_EVENT_SHORT_CLICKED) {
         int msg = millis();
+#ifdef D6NOTIFICATION
         ble_write("AT+LOG:" + String(msg));
+#endif // D6NOTIFICATION
         lv_label_set_text_fmt(label_log, "Log: %i", msg);
         lv_obj_align(label_log, NULL, LV_ALIGN_CENTER, 0, -30);
       } else if (object == btn2 && event == LV_EVENT_SHORT_CLICKED) {
         int msg = get_battery_percent();
+#ifdef D6NOTIFICATION
         ble_write("AT+LOG:" + String(msg));
+#endif // D6NOTIFICATION
         lv_label_set_text_fmt(label_log, "Log: %i", msg);
         lv_obj_align(label_log, NULL, LV_ALIGN_CENTER, 0, -30);
       }

@@ -3,6 +3,7 @@
 
 #define MODEL_P22
 #define HEARTRATE_DISABLE
+#define D6NOTIFICATION
 
 //P22########################################################################################
 #ifdef MODEL_P22

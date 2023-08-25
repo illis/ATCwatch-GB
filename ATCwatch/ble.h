@@ -8,15 +8,18 @@
 
 #include "Arduino.h"
 #include <BLEPeripheral.h>
+#include "pinout.h"
 
 void init_ble();
 void ble_feed();
 void ble_ConnectHandler(BLECentral& central);
 void ble_DisconnectHandler(BLECentral& central);
 void ble_DisconnectHandler(BLECentral& central);
+#ifdef D6NOTIFICATION
 void ble_written(BLECentral& central, BLECharacteristic& characteristic);
-void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic);
 void ble_write(String Command);
+#endif // D6NOTIFICATION
+void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic);
 void bangleSubscribed(BLECentral& central, BLECharacteristic& characteristic);
 bool get_vars_ble_connected();
 void set_vars_ble_connected(bool state);

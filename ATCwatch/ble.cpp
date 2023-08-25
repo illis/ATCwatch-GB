@@ -18,9 +18,12 @@
 #include "TimeLib.h"
 
 BLEPeripheral                   blePeripheral           = BLEPeripheral();
+
+#ifdef D6NOTIFICATION
 BLEService                      main_service     = BLEService("190A");
 BLECharacteristic   TXchar        = BLECharacteristic("0002", BLENotify, 20);
 BLECharacteristic   RXchar        = BLECharacteristic("0001", BLEWriteWithoutResponse, 20);
+#endif // D6NOTIFICATION
 
 bool vars_ble_connected = false;
 
@@ -44,11 +47,14 @@ void init_ble() {
   blePeripheral.addAttribute(bangleRXchar);
   bangleRXchar.setEventHandler(BLEWritten, ble_written_bangle);
 
+#ifdef D6NOTIFICATION
   blePeripheral.setAdvertisedServiceUuid(main_service.uuid());
   blePeripheral.addAttribute(main_service);
   blePeripheral.addAttribute(TXchar);
   blePeripheral.addAttribute(RXchar);
   RXchar.setEventHandler(BLEWritten, ble_written);
+#endif //  D6NOTIFICATION
+
   blePeripheral.setEventHandler(BLEConnected, ble_ConnectHandler);
   blePeripheral.setEventHandler(BLEDisconnected, ble_DisconnectHandler);
   blePeripheral.begin();
@@ -98,6 +104,7 @@ String tempCmd = "";
 int tempLen = 0, tempLen1;
 boolean syn;
 
+#ifdef D6NOTIFICATION
 void ble_written(BLECentral& central, BLECharacteristic& characteristic) {
   char remoteCharArray[22];
   tempLen1 = characteristic.valueLength();
@@ -124,6 +131,8 @@ void ble_write(String Command) {
   }
 }
 
+#endif // D6NOTIFICATION
+
 bool get_vars_ble_connected() {
   return vars_ble_connected;
 }
@@ -132,6 +141,7 @@ void set_vars_ble_connected(bool state) {
   vars_ble_connected = state;
 }
 
+#ifdef D6NOTIFICATION
 void filterCmd(String Command) {
   if (Command == "AT+BOND") {
     ble_write("AT+BOND:OK");
@@ -194,3 +204,4 @@ void filterCmd(String Command) {
     show_msgBody(Command.substring(8));
   }
 }
+#endif // D6NOTIFICATION

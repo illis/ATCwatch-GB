@@ -15,7 +15,7 @@ The default settings will:
  - builds a version for a: P22B1  BYM-TUX2-2.0.4
  - accelometer: disabled via ACCL_DISABLE flag
  - heartrate sensor: disabled via HEARTRATE_DISABLE flag
- - D6 Notification app: disabled via D6NOTIFICATION flag
+ - D6 Notification app: can be disabled via D6NOTIFICATION flag
 
 You will need to mod the ./ATCwatch/pinout.h file to suit your specific device.
 
