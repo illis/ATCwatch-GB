@@ -29,7 +29,7 @@ BLECharacteristic   bangleTXchar        = BLECharacteristic("6e400003b5a3f393e0a
 BLECharacteristic   bangleRXchar        = BLECharacteristic("6e400002b5a3f393e0a9e50e24dcca9e", BLEWriteWithoutResponse, BLE_ATTRIBUTE_MAX_VALUE_LENGTH);
 
 
-char bleRxData_buffer[ANDROID_MAX_CROP_TO_LENGTH];
+char bleRxData_buffer[ANDROID_MAX_MSG_LENGTH];
 BLERxData bleRxData;
 
 void init_ble() {
