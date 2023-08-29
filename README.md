@@ -43,6 +43,21 @@ To generate compile_commands.json for clangd completion run:
 inv bear
 ```
 
+### Flashing w/ desay_dfu & Docker
+init (only need to run this once)
+```
+inv init-desay-dfu
+```
+flash (replace mac addr with your own):
+```
+inv flash --mac xx:xx:xx:xx:xx:xx
+```
+
+#### Reference:
+https://github.com/fanoush/ds-d6/tree/master/fwdump
+
+
+
 #### Getting stuck in bootloop after many flashes?
 - Might be something to do with the heartrate sensor/lib. Disabling it may help.
   - ref: https://discord.com/channels/717057001594683422/717057210211106826/804503020310102026

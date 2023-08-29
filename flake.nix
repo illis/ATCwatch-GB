@@ -52,6 +52,8 @@
             gcc-arm-embedded
             bear # for generating commpile_commands for clangd completion
             python311Packages.adafruit-nrfutil
+            python311Packages.requests
+            python311Packages.docker
             #arduino
             arduino-cli
             python311Packages.invoke # for tasks.py

@@ -2,6 +2,10 @@ from invoke import task
 import os
 import fileinput
 import re
+from requests import get
+import docker
+
+tools_dir = './tools'
 
 @task
 def init(c):
@@ -51,6 +55,33 @@ def init(c):
             if not found: print(line, end='')
 
     print("--- init complete ---")
+
+
+@task
+def init_desay_dfu(c):
+    print("--- setting up desay_dfu ---")
+
+    desay_dir = os.path.join(tools_dir, './desay_dfu')
+
+    for d in [tools_dir, desay_dir]:
+        if not os.path.isdir(d):
+            os.mkdir(d)
+
+    for fn in ['desay_dfu.py', 'desay_dfu.Dockerfile']:
+        f = os.path.join(desay_dir, fn)
+        if not os.path.isfile(f):
+            with open(f, "wb") as file:
+                response = get('https://github.com/fanoush/ds-d6/raw/master/fwdump/' + fn)
+                file.write(response.content)
+
+    try:
+        client = docker.from_env()
+        client.images.build(dockerfile='desay_dfu.Dockerfile', path=desay_dir, tag='desaydfu', rm=True)
+        print("--- desay_dfu setup complete ---")
+
+    except Exception as e:
+        print('--- exception: %(e)s' % {'e': e})
+        print('--- desay_dfu setup failed ---')
 
 
 @task
@@ -113,3 +144,24 @@ def build(c, project=[], clean=False):
             print("")
 
     print("--- build complete ---")
+
+
+@task
+def flash(c, mac=None):
+    print("--- desay_dfu flash process started ---")
+    output_file_dir = os.path.join(c.cwd, './ATCwatch/build/nRF52D6Fitness.nRF5.dsd6Watch/')
+    zip_file_name = "ATCwatch.ino.zip"
+
+    try:
+        client = docker.from_env()
+        docker_command = '-a %(mac_addr)s -z /fw/%(zip_file_name)s' % { "zip_file_name": zip_file_name, "mac_addr": mac }
+        docker_devices = ['/dev/bus']
+        docker_volumes = [ '%(src)s:/fw/' % { 'src': os.path.abspath('./ATCwatch/build/nRF52D6Fitness.nRF5.dsd6Watch/') } ]
+
+        result = client.containers.run('desaydfu', command=docker_command, devices=docker_devices, network_mode='host', remove=True, tty=True, volumes=docker_volumes)
+        print(result)
+        print("--- desay_dfu flash process complete ---")
+
+    except Exception as e:
+        print('--- exception: %(e)s' % {'e': e})
+        print('--- desay_dfu flash process failed ---')

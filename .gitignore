@@ -5,3 +5,4 @@ compile_commands.json
 ATCwatch/build
 libraries/lv_arduino
 libraries/HRS3300-Arduino-Library
+tools/desay_dfu
