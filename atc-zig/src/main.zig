@@ -19,6 +19,7 @@ fn to_s(s: [*c]u8, se: *const StartEnd) []u8 {
 const JT = enum {
     String,
     Integer,
+    Bool,
 };
 
 const Keys = enum {
@@ -34,6 +35,7 @@ const Keys = enum {
     number,
     subject,
     tel,
+    speed,
 };
 
 const KVIndexes = struct {
@@ -41,6 +43,24 @@ const KVIndexes = struct {
     val_ty: JT = undefined,
     val_se: StartEnd = StartEnd{},
 };
+
+inline fn is_valid_integer_char(ch: u8) bool {
+    return switch (ch) {
+        '0'...'9' => true,
+        '-'...'.' => true,
+        else => false,
+    };
+}
+
+inline fn skipover_bool(s: [*c]u8, start_idx: u16) ?u8 {
+    const false_str = "false";
+    const true_str = "true";
+
+    if (c.strncmp(true_str, s + start_idx, true_str.len) == 0) return true_str.len;
+    if (c.strncmp(false_str, s + start_idx, false_str.len) == 0) return false_str.len;
+
+    return null;
+}
 
 fn find_next_kp(s: [*c]u8, start_idx: u16) KVIndexes {
     var kp: KVIndexes = KVIndexes{};
@@ -69,14 +89,17 @@ fn find_next_kp(s: [*c]u8, start_idx: u16) KVIndexes {
         },
         false => blk: {
             kp.val_se.start = key_se.end + 2;
-            break :blk JT.Integer;
+            break :blk switch (is_valid_integer_char(s[kp.val_se.start])) {
+                true => JT.Integer,
+                false => JT.Bool,
+            };
         },
     };
 
     kp.val_se.end = kp.val_se.start;
     switch (kp.val_ty) {
         JT.Integer => {
-            while ((s[kp.val_se.end] >= '0') and (s[kp.val_se.end] <= '9')) {
+            while (is_valid_integer_char(s[kp.val_se.end])) {
                 kp.val_se.end += 1;
             }
         },
@@ -88,6 +111,9 @@ fn find_next_kp(s: [*c]u8, start_idx: u16) KVIndexes {
 
                 kp.val_se.end += 1;
             }
+        },
+        JT.Bool => {
+            kp.val_se.end += skipover_bool(s, kp.val_se.start) orelse undefined;
         },
     }
 
@@ -158,6 +184,9 @@ const set_time_callback_op = *const fn (epoch: c_long) callconv(.C) void;
 const show_notf_callback_op = *const fn (msg: [*c]const u8) callconv(.C) void;
 const wakeup_callback_op = *const fn () callconv(.C) void;
 
+const GPSData = extern struct {
+    speed: f32,
+};
 // this also needs to be duplicated in atczig.h
 const BLERxData = extern struct {
     buffer_pos: u16,
@@ -165,13 +194,16 @@ const BLERxData = extern struct {
     short_msg_buffer_len: u8,
     short_msg_buffer: [*c]u8,
     notfs: *c.NotfData,
+    gps: *GPSData,
     set_time_cb: set_time_callback_op,
     wakeup_cb: wakeup_callback_op,
+    tx_cb: tx_callback_op,
 };
 
 const cmd_settime_check_str = "\x10setTime(";
 const cmd_notify_set_check_str = "\x10GB({\"t\":\"notify\"";
 const cmd_call_set_check_str = "\x10GB({\"t\":\"call\"";
+const cmd_gps_set_check_str = "\x10GB({\"t\":\"gps\"";
 
 fn process_set_time(rxData: *BLERxData) void {
     // setTime(1692075012);E.setTimeZone(12.0);(s=>s&&(s.timezone=12.0,require('Storage').write('setting.json',s)))(require('Storage').readJSON('setting.json',1))
@@ -199,6 +231,10 @@ fn process_set_time(rxData: *BLERxData) void {
     epoch += @intFromFloat(c.strtof(&b, null) * 60 * 60);
 
     rxData.set_time_cb(epoch);
+
+    // send back fw/hw
+    const verMsg = "{\"t\":\"ver\",\"fw\":\"atcgb-0.0.1\",\"hw\":\"P22B1\"} \x00";
+    rxData.tx_cb(verMsg, verMsg.len);
 }
 
 fn is_notification_sms(kps: *std.EnumMap(Keys, StartEnd)) bool {
@@ -255,6 +291,20 @@ fn process_call(rxData: *BLERxData) void {
     _ = setNotfData_se(rxData.notfs, rxData.buffer, kps, NotfDataInput{ .key = Keys.t }, NotfDataInput{ .key = Keys.name }, NotfDataInput{ .key = Keys.number });
 }
 
+fn process_gps(rxData: *BLERxData) void {
+    var kps = find_kps(rxData.buffer, 4);
+
+    rxData.gps.speed = 0.23;
+    if (kps.get(Keys.speed)) |speed| {
+        rxData.gps.speed = @floatCast(c.atof((rxData.buffer + speed.start)));
+
+        // doing the following bumps up our filesize ~24k!
+        // if (std.fmt.parseFloat(f32, to_s(rxData.buffer, &speed))) |speedFloat| {
+        //     rxData.gps.speed = speedFloat;
+        // } else |_| {}
+    }
+}
+
 fn handle_input_msg(rxData: *BLERxData) void {
     if (c.strncmp(cmd_settime_check_str, rxData.buffer, cmd_settime_check_str.len) == 0) {
         process_set_time(rxData);
@@ -264,6 +314,8 @@ fn handle_input_msg(rxData: *BLERxData) void {
     } else if (c.strncmp(cmd_call_set_check_str, rxData.buffer, cmd_call_set_check_str.len) == 0) {
         process_call(rxData);
         rxData.wakeup_cb();
+    } else if (c.strncmp(cmd_gps_set_check_str, rxData.buffer, cmd_gps_set_check_str.len) == 0) {
+        process_gps(rxData);
     }
 }
 
@@ -372,6 +424,33 @@ test "check find next kp w/ int" {
     try testing.expectEqualStrings("1234", s[idxs.val_se.start..idxs.val_se.end]);
 }
 
+test "check find next kp w/ negative int" {
+    var s_original = "\"t\":-1234";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_next_kp(s, 0);
+    try testing.expectEqual(Keys.t, idxs.key.?);
+    try testing.expectEqualStrings("-1234", s[idxs.val_se.start..idxs.val_se.end]);
+}
+
+test "check find next kp w/ negative float" {
+    var s_original = "\"t\":-12.34";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_next_kp(s, 0);
+    try testing.expectEqual(Keys.t, idxs.key.?);
+    try testing.expectEqualStrings("-12.34", s[idxs.val_se.start..idxs.val_se.end]);
+}
+
+test "check find next kp w/ bool" {
+    var s_original = "\"t\":false";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_next_kp(s, 0);
+    try testing.expectEqual(Keys.t, idxs.key.?);
+    try testing.expectEqualStrings("false", s[idxs.val_se.start..idxs.val_se.end]);
+}
+
 test "check find kps" {
     var s_original = "\x10GB({\"t\":\"call\",\"cmd\":\"incoming\"})";
     var s: [*c]u8 = @ptrCast(@constCast(s_original));
@@ -438,6 +517,15 @@ test "check long notification" {
     try testing.expectEqualStrings("xxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #...", s[idxs.get(Keys.body).?.start..idxs.get(Keys.body).?.end]);
 }
 
+test "check GB gps" {
+    var s_original = "\x10GB({\"t\":\"gps\",\"lat\":-23.12345678,\"lon\":123.45678912,\"alt\":54.50982666015625,\"speed\":0.32201942801475525,\"time\":1693368423058,\"satellites\":0,\"hdop\":7.957945346832275,\"externalSource\":true,\"gpsSource\":\"gps\"})";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_kps(s, 4);
+
+    try testing.expectEqualStrings("gps", s[idxs.get(Keys.t).?.start..idxs.get(Keys.t).?.end]);
+    try testing.expectEqualStrings("0.32201942801475525", s[idxs.get(Keys.speed).?.start..idxs.get(Keys.speed).?.end]);
+}
 
 test "copy to buffer test" {
     var s_original = "\x10GB({\"t\":\"call\",\"cmd\":\"incoming\"})";

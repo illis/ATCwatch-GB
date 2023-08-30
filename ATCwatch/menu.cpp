@@ -25,7 +25,7 @@
 #include "menu_Settings_Date.h"
 #include "menu_Settings_Color.h"
 #include "menu_Settings_Brightness.h"
-#include "menu_Animation.h"
+#include "menu_Tracker.h"
 #include "menu_infos.h"
 #include "menu_Accl.h"
 #include "menu_App.h"
@@ -57,7 +57,7 @@ app_struct updateApp = {"Bootloader", &IsymbolBootloader, &updateScreen};
 app_struct offApp = {"Shutdown", &IsymbolShutdown, &offScreen};
 app_struct settingsApp = {"Settings", &IsymbolSettings, &settingsScreen};
 
-app_struct animationApp = {"Animation", &IsymbolAnimation, &animationScreen};
+app_struct trackerApp = {"GPS", &IsymbolAnimation, &trackerScreen};
 app_struct infosApp = {"Infos", &IsymbolInfos, &infosScreen};
 app_struct acclApp = {"Accl", &IsymbolAccl , &acclScreen};
 app_struct demoApp = {"Demo", &IsymbolChart , &demoScreen};
@@ -68,7 +68,7 @@ app_struct httpApp = {"HTTP", &IsymbolMouse , &httpScreen};
 app_struct logApp = {"Logging", &IsymbolAnimation , &logScreen};
 
 int maxApps = 4;
-AppScreen apps1Screen(1, maxApps, &notifyApp, &heartApp, &debugApp, &animationApp);
+AppScreen apps1Screen(1, maxApps, &notifyApp, &heartApp, &debugApp, &trackerApp);
 AppScreen apps2Screen(2, maxApps, &rebootApp, &updateApp, &offApp, &settingsApp);
 AppScreen apps3Screen(3, maxApps, &infosApp, &acclApp, &demoApp, &batteryApp);
 AppScreen apps4Screen(4, maxApps, &flashApp, &touchApp, &httpApp, &logApp);

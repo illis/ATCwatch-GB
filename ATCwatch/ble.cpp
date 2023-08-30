@@ -60,24 +60,27 @@ void init_ble() {
   blePeripheral.begin();
   ble_feed();
 
+  enable_gps_view = false;
   bleRxData = BLERxData {
     .buffer_pos = 0,
     .buffer = (const char *) bleRxData_buffer,
     .short_buffer_len = MSGTEXT_MAX_LEN,
     .short_msg_buffer = show_push_get_buffer(),
     .notfs = get_notf_data(),
+    .gps_data = &gps_data,
     .set_time_cb = setTime,
     .wakeup_cb = show_push_wakeup,
+    .tx_cb = ble_tx_bangle,
   };
 }
 
-void ble_tx_bangle(const char* cmd, uint8_t len) {
-  uint8_t i = 0;
+void ble_tx_bangle(const char* cmd, uint16_t len) {
+  uint16_t i = 0;
   while (i < len) {
     bangleTXchar.setValue(cmd + i);
     i += BLE_ATTRIBUTE_MAX_VALUE_LENGTH;
   }
-    bangleTXchar.setValue("\r\n");
+  bangleTXchar.setValue("\n");
 }
 
 void ble_written_bangle(BLECentral& central, BLECharacteristic& characteristic) {

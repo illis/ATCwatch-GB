@@ -43,7 +43,6 @@ class HomeScreen : public Screen
       lv_obj_set_style( label_date, &st );
       lv_obj_align(label_date, NULL, LV_ALIGN_CENTER, 0, 30);
 
-
       label_battery = lv_label_create(lv_scr_act(), NULL);
       lv_obj_align(label_battery, lv_scr_act(), LV_ALIGN_IN_TOP_LEFT, 25, 5);
       lv_label_set_text_fmt(label_battery, "%i%%", get_battery_percent());
@@ -105,8 +104,15 @@ class HomeScreen : public Screen
       time_data = get_time();
       accl_data = get_accl_data();
 
+
       lv_label_set_text_fmt(label_time,  "%02i:%02i:%02i", time_data.hr, time_data.min, time_data.sec);
-      lv_label_set_text_fmt(label_date, "%02i.%02i.%04i", time_data.day, time_data.month, time_data.year);
+
+      if (enable_gps_view) {
+        // *3.6 to turn m/s to km/h
+        lv_label_set_text_fmt(label_date, "%04.1f km/h", gps_data.speed * 3.6);
+      } else {
+        lv_label_set_text_fmt(label_date, "%02i.%02i.%04i", time_data.day, time_data.month, time_data.year);
+      }
 
       lv_label_set_text_fmt(label_battery, "%i%%", get_battery_percent());
 
