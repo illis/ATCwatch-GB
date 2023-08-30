@@ -46,22 +46,29 @@ fn find_next_kp(s: [*c]u8, start_idx: u16) KVIndexes {
     var kp: KVIndexes = KVIndexes{};
     var key_se = StartEnd{};
 
-    key_se.start = start_idx;
+    // + 1 as we need to skip over the opening quote
+    key_se.start = start_idx + 1;
+    std.debug.assert('"' == s[key_se.start - 1]);
+
     key_se.end = key_se.start + 1;
-    while (s[key_se.end] != ':') {
+    while (s[key_se.end] != '"') {
         key_se.end += 1;
     }
 
     // translate to enum
     kp.key = std.meta.stringToEnum(Keys, s[key_se.start..key_se.end]);
 
-    kp.val_ty = switch (s[key_se.end + 1] == '"') {
+    std.debug.assert('"' == s[key_se.end]);
+    std.debug.assert(':' == s[key_se.end + 1]);
+
+    // + 2 as we need to skip over the end quote and the colon at the end of the key
+    kp.val_ty = switch (s[key_se.end + 2] == '"') {
         true => blk: {
-            kp.val_se.start = key_se.end + 2;
+            kp.val_se.start = key_se.end + 3;
             break :blk JT.String;
         },
         false => blk: {
-            kp.val_se.start = key_se.end + 1;
+            kp.val_se.start = key_se.end + 2;
             break :blk JT.Integer;
         },
     };
@@ -163,8 +170,8 @@ const BLERxData = extern struct {
 };
 
 const cmd_settime_check_str = "\x10setTime(";
-const cmd_notify_set_check_str = "\x10GB({t:\"notify\"";
-const cmd_call_set_check_str = "\x10GB({t:\"call\"";
+const cmd_notify_set_check_str = "\x10GB({\"t\":\"notify\"";
+const cmd_call_set_check_str = "\x10GB({\"t\":\"call\"";
 
 fn process_set_time(rxData: *BLERxData) void {
     // setTime(1692075012);E.setTimeZone(12.0);(s=>s&&(s.timezone=12.0,require('Storage').write('setting.json',s)))(require('Storage').readJSON('setting.json',1))
@@ -347,9 +354,40 @@ test "u8 to string int" {
     try testing.expectEqualStrings("65", &to_string_int('A'));
 }
 
+test "check find next kp w/ string" {
+    var s_original = "\"t\":\"c\\\"all\"";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_next_kp(s, 0);
+    try testing.expectEqual(Keys.t, idxs.key.?);
+    try testing.expectEqualStrings("c\\\"all", s[idxs.val_se.start..idxs.val_se.end]);
+}
+
+test "check find next kp w/ int" {
+    var s_original = "\"t\":1234";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_next_kp(s, 0);
+    try testing.expectEqual(Keys.t, idxs.key.?);
+    try testing.expectEqualStrings("1234", s[idxs.val_se.start..idxs.val_se.end]);
+}
+
+test "check find kps" {
+    var s_original = "\x10GB({\"t\":\"call\",\"cmd\":\"incoming\"})";
+    var s: [*c]u8 = @ptrCast(@constCast(s_original));
+
+    var idxs = find_kps(s, 4);
+
+    try testing.expect(idxs.contains(Keys.t));
+    try testing.expectEqualStrings("call", s[idxs.get(Keys.t).?.start..idxs.get(Keys.t).?.end]);
+    try testing.expect(idxs.contains(Keys.cmd));
+    try testing.expectEqualStrings("incoming", s[idxs.get(Keys.cmd).?.start..idxs.get(Keys.cmd).?.end]);
+
+    try testing.expect(!idxs.contains(Keys.name));
+}
+
 test "check GB notify" {
-    // UART TX: GB({t:\"notify\",id:1692075767,src:\"Gadgetbridge\",title:\"\",subject:\"Test\\"\",body:\"Test\",sender:\"Test\",tel:\"Test\"})
-    var s_original = "\x10GB({t:\"notify\",id:1692075767,src:\"Gadgetbridge\",title:\"\",subject:\"Test\\\"\",body:\"Test\",sender:\"Test\",tel:\"Test\"})";
+    var s_original = "\x10GB({\"t\":\"notify\",\"id\":1692075767,\"src\":\"Gadgetbridge\",\"title\":\"\",\"subject\":\"Test\\\"\",\"body\":\"Test\",\"sender\":\"Test\",\"tel\":\"Test\"})";
     var s: [*c]u8 = @ptrCast(@constCast(s_original));
 
     var idxs = find_kps(s, 4);
@@ -361,8 +399,7 @@ test "check GB notify" {
 }
 
 test "check GB notify sms" {
-    // UART TX GB({t:"notify",id:1692076320,title:"",subject:"",body:"Hi! Your Skinny balance is\n$8.93 credit\n1946 NZ and AU Rollover Mins\nUnlimited Skinny Mins\nUnlimited NZ and AU Texts\n13902.76 MB Rollover Data\nFor your account info, text INFO to 2424.",sender:"2424",tel:"2424"})
-    var s_original = "\x10GB({t:\"notify\",id:1692076320,title:\"\",subject:\"\",body:\"Hi! \n How are you.\",sender:\"2424\",tel:\"2424\"})";
+    var s_original = "\x10GB({\"t\":\"notify\",\"id\":1692076320,\"title\":\"\",\"subject\":\"\",\"body\":\"Hi! \n How are you.\",\"sender\":\"2424\",\"tel\":\"2424\"})";
     var s: [*c]u8 = @ptrCast(@constCast(s_original));
 
     var idxs = find_kps(s, 4);
@@ -377,7 +414,7 @@ test "check GB notify sms" {
 }
 
 test "check GB call" {
-    var s_original = "\x10GB({t:\"call\",cmd:\"incoming\",name:\"Testname\",number:\"Testnum\"})";
+    var s_original = "\x10GB({\"t\":\"call\",\"cmd\":\"incoming\",\"name\":\"Testname\",\"number\":\"Testnum\"})";
     var s: [*c]u8 = @ptrCast(@constCast(s_original));
 
     var idxs = find_kps(s, 4);
@@ -389,7 +426,7 @@ test "check GB call" {
 }
 
 test "check long notification" {
-    var s_original = "\x10GB({t:\"notify\",id:1692789752,src:\"K-9 Mail\",title:\"xxxxxxxxxxxxxxxxxxx\",subject:\"\",body:\"xxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #...\",sender:\"\"})";
+    var s_original = "\x10GB({\"t\":\"notify\",\"id\":1692789752,\"src\":\"K-9 Mail\",\"title\":\"xxxxxxxxxxxxxxxxxxx\",\"subject\":\"\",\"body\":\"xxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #...\",\"sender\":\"\"})";
     var s: [*c]u8 = @ptrCast(@constCast(s_original));
 
     var idxs = find_kps(s, 4);
@@ -401,40 +438,9 @@ test "check long notification" {
     try testing.expectEqualStrings("xxxxxxxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #...", s[idxs.get(Keys.body).?.start..idxs.get(Keys.body).?.end]);
 }
 
-test "check find next kp w/ string" {
-    var s_original = "t:\"c\\\"all\"";
-    var s: [*c]u8 = @ptrCast(@constCast(s_original));
-
-    var idxs = find_next_kp(s, 0);
-    try testing.expectEqual(Keys.t, idxs.key.?);
-    try testing.expectEqualStrings("c\\\"all", s[idxs.val_se.start..idxs.val_se.end]);
-}
-
-test "check find next kp w/ int" {
-    var s_original = "t:1234";
-    var s: [*c]u8 = @ptrCast(@constCast(s_original));
-
-    var idxs = find_next_kp(s, 0);
-    try testing.expectEqual(Keys.t, idxs.key.?);
-    try testing.expectEqualStrings("1234", s[idxs.val_se.start..idxs.val_se.end]);
-}
-
-test "check find kps" {
-    var s_original = "\x10GB({t:\"call\",cmd:\"incoming\"})";
-    var s: [*c]u8 = @ptrCast(@constCast(s_original));
-
-    var idxs = find_kps(s, 4);
-
-    try testing.expect(idxs.contains(Keys.t));
-    try testing.expectEqualStrings("call", s[idxs.get(Keys.t).?.start..idxs.get(Keys.t).?.end]);
-    try testing.expect(idxs.contains(Keys.cmd));
-    try testing.expectEqualStrings("incoming", s[idxs.get(Keys.cmd).?.start..idxs.get(Keys.cmd).?.end]);
-
-    try testing.expect(!idxs.contains(Keys.name));
-}
 
 test "copy to buffer test" {
-    var s_original = "\x10GB({t:\"call\",cmd:\"incoming\"})";
+    var s_original = "\x10GB({\"t\":\"call\",\"cmd\":\"incoming\"})";
     var s: [*c]u8 = @ptrCast(@constCast(s_original));
     var kps = find_kps(s, 4);
 
