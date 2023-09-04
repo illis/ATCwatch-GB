@@ -2,13 +2,15 @@
 Modified version of [atc1441's watch firmware](https://github.com/atc1441/ATCwatch).
 
 - Supports Gadgetbridge using bangle.js commands (still can use D6 Notification app w/ build flag}.
+  - Requires GB >= v0.76
   - So far only the following cmds are supported:
     - setTime
     - notify
     - call: incoming (notification only)
 - Has internal libs written both zig & rust (wanted to see how well cross compiling worked)
 - nix dev shell
-- Updated notification's tab
+- Updated notification's tab (can swipe thru multiple notifications)
+- GPS speed shown on main screen (toggle-able)
 
 ## Setup for your watch
 The default settings will:
